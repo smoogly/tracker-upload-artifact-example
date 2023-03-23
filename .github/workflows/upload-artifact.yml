@@ -1,0 +1,16 @@
+name: Artifact upload example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate_and_upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - run: touch usages.sqlite
+    - run: npx radius-tracker report
+    - uses: actions/upload-artifact@v3
+      with:
+        name: tracker-report
+        path: radius-tracker-report/*
