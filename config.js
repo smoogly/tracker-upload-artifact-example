@@ -14,7 +14,7 @@ const targets = {
     reactstrap: /^reactstrap/,
 };
 
-export default [
+module.exports = [
   {
     repoUrl: "https://github.com/percona/grafana-dashboards.git",
     subprojectPath: "/pmm-app",
