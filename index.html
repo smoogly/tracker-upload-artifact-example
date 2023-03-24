@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Design system metrics</title>
+<link rel="stylesheet" type="text/css" href="./inspector.css">
+<body>
+<script type="module">
+
+import define from "./index.js";
+import { Runtime, Library, Inspector } from "./runtime.js";
+
+const localLibraries = {
+    "https://cdn.jsdelivr.net/npm/htm@2.2.1/dist/htm.umd.js": "./dependencies/npm/htm@2.2.1/dist/htm.umd.js",
+    "https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js": "./dependencies/react-dom@18.2.0/umd/react-dom.production.min.js",
+    "https://unpkg.com/react@18.2.0/umd/react.production.min.js": "./dependencies/react@18.2.0/umd/react.production.min.js",
+    "https://cdn.jsdelivr.net/npm/@observablehq/highlight.js@2.0.0/highlight.min.js": "./dependencies/npm/@observablehq/highlight.js@2.0.0/highlight.min.js",
+    "https://cdn.jsdelivr.net/npm/@observablehq/inspector@5.0.0/dist/inspector.js": "./dependencies/npm/@observablehq/inspector@5.0.0/dist/inspector.js",
+    "https://cdn.jsdelivr.net/npm/htl@0.3.1/dist/htl.min.js": "./dependencies/npm/htl@0.3.1/dist/htl.min.js",
+    "https://cdn.jsdelivr.net/npm/marked@0.3.12/marked.min.js": "./dependencies/npm/marked@0.3.12/marked.min.js",
+    "https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.js": "./dependencies/npm/sql.js@1.8.0/dist/sql-wasm.js",
+    "https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js": "./dependencies/npm/lodash@4.17.21/lodash.min.js",
+    "https://cdn.jsdelivr.net/npm/sql.js@1.8.0/dist/sql-wasm.wasm": "./dependencies/npm/sql.js@1.8.0/dist/sql-wasm.wasm",
+    "https://cdn.jsdelivr.net/npm/d3@7.8.2/dist/d3.min.js": "./dependencies/npm/d3@7.8.2/dist/d3.min.js",
+    "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.4/dist/plot.umd.min.js": "./dependencies/npm/@observablehq/plot@0.6.4/dist/plot.umd.min.js",
+    "https://cdn.jsdelivr.net/npm/classnames@2.3.2/index.js": "./dependencies/npm/classnames@2.3.2/index.js",
+    "https://cdn.jsdelivr.net/npm/react-window@1.8.8/dist/index-prod.umd.js": "./dependencies/npm/react-window@1.8.8/dist/index-prod.umd.js"
+};
+const libraryUrls = Object.keys(localLibraries);
+
+const strictRequire = Library.requireFrom(async (name) => {
+    const match = libraryUrls.find(u => u.includes(name));
+    if (!match) {
+        throw new Error(`Unknown require resource. Please add it to knownExternalResources list, so that it can be statically resolved for report archival: ${name}`);
+    }
+
+    return localLibraries[match];
+});
+
+strictRequire.resolve = (path) => {
+    const match = libraryUrls.find(u => u.includes(path));
+    if (!match) {
+        throw new Error(`Unknown resolve resource. Please add a matching URL to knownExternalResources list, so that it can be statically resolved for report archival: ${path}`);
+    }
+
+    // Observable stdlib uses `require.resolve` to find where `sql-wasm.wasm` is located
+    // relative to `sql-wasm.js` in `sql.js` module.
+    // https://github.com/observablehq/stdlib/blob/fd48793e9e1bea5379e98d7f246a3442226562f2/src/sqlite.js#L5
+    //
+    // This contraption 1) assumes wasm file is loaded using knownExternalResources list,
+    // and 2) local dependencies are organized in the same way the files in the original CDN are.
+    const matchedPathname = new URL(sliceUntilAndIncluding(match, path)).pathname;
+    return sliceUntilAndIncluding(localLibraries[match], matchedPathname);
+
+    function sliceUntilAndIncluding(str, chunk) {
+        const index = str.indexOf(chunk);
+        if (index === -1) { throw new Error(`Can not find ${chunk} in ${str}`); }
+        return str.slice(0, index + chunk.length);
+    }
+};
+
+// Overwrite the default require
+Library.require = strictRequire;
+
+
+const runtime = new Runtime(new Library());
+const main = runtime.module(define, Inspector.into(document.body));
+
+</script>
